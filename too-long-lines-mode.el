@@ -42,6 +42,7 @@
   (interactive)
   (ad-enable-advice 'set-auto-mode 'before 'too-long-lines-hide-before-set-auto-mode)
   (ad-activate 'set-auto-mode)
+  (too-long-lines-hide)
   (setq too-long-lines-mode-enabled t))
 
 (defun too-long-lines-mode-off ()
@@ -49,6 +50,7 @@
   (interactive)
   (ad-disable-advice 'set-auto-mode 'before 'too-long-lines-hide-before-set-auto-mode)
   (ad-activate 'set-auto-mode)
+  (too-long-lines-show)
   (setq too-long-lines-mode-enabled nil))
 
 (ad-activate 'set-auto-mode)
