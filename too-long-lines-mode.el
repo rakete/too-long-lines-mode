@@ -1,4 +1,4 @@
-;;; pixel-mode.el --- Minor mode for drawing pixel art
+;;; too-long-lines-mode.el --- Minor mode for hiding too long lines
 
 ;; Copyright (C) 2017 Andreas Raster
 
