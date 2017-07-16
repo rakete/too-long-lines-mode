@@ -45,25 +45,24 @@
 
 ;;; Code:
 (defvar too-long-lines-threshold 10000
-  "The threshold after which `too-long-lines-hide' cuts of a line and hides
-the rest.")
+  "The threshold after which `too-long-lines-hide' cuts of a line and hides the rest.")
 
 (defvar too-long-lines-show-number-of-characters 30
-  "how many characters of a line, starting from the beginngin, remain shown
-after `too-long-lines-hide' has hidden it.")
+  "How many characters of a line remain shown after it is hidden.")
 
 (defun too-long-lines-hide (&optional beg end len)
-  "Hides lines that are longer then `too-long-lines-threshold' and replaces
-them by the first number characters of the line as configured in variable
-`too-long-lines-show-number-of-characters', and a little info blurp about
-how many characters were hidden.
+  "Hides lines that are longer then `too-long-lines-threshold'.
+
+It replaces them by the first number characters of the line as configured in
+variable `too-long-lines-show-number-of-characters', and a little info blurp
+about how many characters were hidden.
 
 BEG and END arguments can be used to narrow the region in which this function
 looks for too long lines. LEN is only there so this function can be added
 to `after-change-functions'.
 
 See also `too-long-lines-threshold', `too-long-lines-show-number-of-characters',
-`too-long-lines-show' and `too-long-lines-mode'."
+and `too-long-lines-show'."
   (interactive)
   (when (and (buffer-file-name (current-buffer)) (file-exists-p (buffer-file-name (current-buffer))))
     (save-excursion
@@ -84,8 +83,7 @@ See also `too-long-lines-threshold', `too-long-lines-show-number-of-characters',
         (forward-line 1)))))
 
 (defun too-long-lines-show ()
-  "Shows all lines previously hidden by `too-long-lines-hide' in the current
-buffer."
+  "Restore all lines previously hidden by `too-long-lines-hide' in the current buffer."
   (interactive)
   (when (and (buffer-file-name (current-buffer)) (file-exists-p (buffer-file-name (current-buffer))))
     (save-excursion
