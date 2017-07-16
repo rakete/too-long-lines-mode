@@ -4,7 +4,7 @@
 
 ;; Author: Andreas Raster <lazor@affenbande.org>
 ;; Version: 0
-;; Keywords: workarounds display
+;; Keywords: convenience files maint
 ;; Package-Requires: ((emacs "24.2"))
 ;; URL: https://github.com/rakete/too-long-lines-mode
 
@@ -120,3 +120,4 @@ See also `too-long-lines-hide'."
           (too-long-lines-show))))))
 
 (provide 'too-long-lines-mode)
+;;; too-long-lines-mode.el ends here
