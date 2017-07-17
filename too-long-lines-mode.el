@@ -78,6 +78,7 @@ and `too-long-lines-show'."
               (let ((ov (make-overlay (+ (point-at-bol) too-long-lines-show-number-of-characters) (point-at-eol) (current-buffer))))
                 (overlay-put ov 'too-long-line t)
                 (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters"))
+                (overlay-put ov 'face '(:background "#ff0066"))
                 )
               )))
         (forward-line 1)))))
