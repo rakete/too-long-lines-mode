@@ -97,13 +97,12 @@ and `too-long-lines-show'."
 
 ;;;###autoload
 (define-minor-mode too-long-lines-mode
-  "A global minor that hides lines that are longer then a configurable threshold.
+  "A minor that hides lines that are longer then a configurable threshold.
 
 See also `too-long-lines-hide'."
   nil
   " tll"
   '()
-  :global t
   (if too-long-lines-mode
       (progn
         (dolist (buf (buffer-list))
