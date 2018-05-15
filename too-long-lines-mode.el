@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; too-long-lines-mode.el --- Minor mode for hiding too long lines
 
 ;; Copyright (C) 2017 Andreas Raster
