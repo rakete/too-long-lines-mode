@@ -51,6 +51,10 @@
 (defvar too-long-lines-show-number-of-characters 30
   "How many characters of a line remain shown after it is hidden.")
 
+(defvar too-long-lines-hide-current-timer nil)
+
+(defvar too-long-lines-idle-seconds 1)
+
 (defun too-long-lines-hide (&optional beg end len)
   "Hides lines that are longer then `too-long-lines-threshold'.
 
@@ -65,36 +69,51 @@ to `after-change-functions'.
 See also `too-long-lines-threshold', `too-long-lines-show-number-of-characters',
 and `too-long-lines-show'."
   (interactive)
-  (when (and (buffer-file-name (current-buffer)) (file-exists-p (buffer-file-name (current-buffer))))
+  (unless (window-minibuffer-p)
     (save-excursion
       (goto-char (or beg (point-min)))
-      (while (not (>= (point) (or end (point-max))))
-        (let ((line-length (- (point-at-eol) (point-at-bol)))
-              (already-hidden nil))
-          (when (> line-length too-long-lines-threshold)
-            (dolist (ov (overlays-in (point-at-bol) (point-at-eol)))
-              (when (overlay-get ov 'too-long-line)
-                (setq already-hidden t)))
-            (unless already-hidden
-              (let ((ov (make-overlay (+ (point-at-bol) too-long-lines-show-number-of-characters) (point-at-eol) (current-buffer))))
-                (overlay-put ov 'too-long-line t)
-                (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters"))
-                (overlay-put ov 'face '(:background "#ff0066"))
-                )
-              )))
-        (forward-line 1)))))
+      (let ((done nil))
+        (while (not done)
+          (setq done (>= (line-end-position) (or end (point-max))))
+          (let ((line-length (- (line-end-position) (line-beginning-position)))
+                (already-hidden nil))
+            (when (> line-length too-long-lines-threshold)
+              (dolist (ov (overlays-in (line-end-position) (line-beginning-position)))
+                (when (overlay-get ov 'too-long-line)
+                  (setq already-hidden t)))
+              (unless already-hidden
+                (let ((ov (make-overlay (+ (line-beginning-position) too-long-lines-show-number-of-characters) (line-end-position) (current-buffer))))
+                  (overlay-put ov 'too-long-line t)
+                  (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters"))
+                  (overlay-put ov 'face '(:background "#ff0066"))
+                  )
+                )))
+          (when (eq (point) (goto-char (line-beginning-position 2)))
+            (setq done t)))))))
+
+(defun too-long-lines-run-with-idle-timer (&optional beg end len)
+  (interactive)
+  (when too-long-lines-hide-current-timer
+    (cancel-timer too-long-lines-hide-current-timer)
+    (setq too-long-lines-hide-current-timer nil))
+  (lexical-let ((lexical-beg (or beg (point-min)))
+                (lexical-end (or end (point-max))))
+    (setq too-long-lines-hide-current-timer
+          (run-with-idle-timer too-long-lines-idle-seconds nil 'too-long-lines-hide lexical-beg lexical-end))))
 
 (defun too-long-lines-show ()
   "Restore all lines previously hidden by `too-long-lines-hide' in the current buffer."
   (interactive)
-  (when (and (buffer-file-name (current-buffer)) (file-exists-p (buffer-file-name (current-buffer))))
-    (save-excursion
-      (goto-char (point-min))
-      (while (not (= (point) (point-max)))
-        (dolist (ov (overlays-in (point-at-bol) (point-at-eol)))
+  (save-excursion
+    (goto-char (point-min))
+    (let ((done nil))
+      (while (not done)
+        (setq done (>= (line-end-position) (or end (point-max))))
+        (dolist (ov (overlays-in (line-beginning-position) (line-end-position)))
           (when (overlay-get ov 'too-long-line)
             (delete-overlay ov)))
-        (forward-line 1)))))
+        (when (eq (point) (goto-char (line-beginning-position 2)))
+          (setq done t))))))
 
 ;;;###autoload
 (define-minor-mode too-long-lines-mode
@@ -111,10 +130,11 @@ See also `too-long-lines-hide'."
           (with-current-buffer buf
             (too-long-lines-hide)))
         (add-hook 'find-file-hook 'too-long-lines-hide)
-        (add-hook 'after-change-functions 'too-long-lines-hide))
+        (add-hook 'post-command-hook 'too-long-lines-run-with-idle-timer)
+        )
     (progn
       (remove-hook 'find-file-hook 'too-long-lines-hide)
-      (remove-hook 'after-change-functions 'too-long-lines-hide)
+      (remove-hook 'post-command-hook 'too-long-lines-run-with-idle-timer)
       (dolist (buf (buffer-list))
         (with-current-buffer buf
           (too-long-lines-show))))))
