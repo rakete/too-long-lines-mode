@@ -31,9 +31,8 @@
 ;; replacing them with only a few of their first characters and a little info
 ;; blurp about how many characters were hidden.
 
-;; It works adding the function too-long-lines-hide into the find-file-hook and
-;; into after-change-function so that it is called as soon as a file is opened
-;; or whenever is something inserted into a buffer.
+;; It works adding the function too-long-lines-hide into the find-file-hook so that
+;; it is called as soon as a file is opened.
 
 ;; too-long-lines-hide goes through all lines in a buffer, checks if the line
 ;; is longer then too-long-lines-threshold and if it is, it creates an overlay
@@ -51,55 +50,84 @@
 (defvar too-long-lines-show-number-of-characters 30
   "How many characters of a line remain shown after it is hidden.")
 
-(defvar too-long-lines-hide-current-timer nil)
+(defvar too-long-lines-hide-current-timer nil
+  "The current timer for `too-long-lines-run-with-idle-time-in-special-buffers'.
 
-(defvar too-long-lines-idle-seconds 1)
+Do not set this manually, use `too-long-lines-idle-seconds' to specify the
+idle seconds after which `too-long-lines-run-with-idle-time-in-special-buffers'
+runs `too-long-lines-hide'.")
 
-(defun too-long-lines-hide (&optional beg end len)
+(defvar too-long-lines-idle-seconds 3
+  "Set this to how many seconds emacs should be idle before
+`too-long-lines-run-with-idle-time-in-special-buffers' runs `too-long-lines-hide'.")
+
+(defvar too-long-lines-special-buffer-modes '(shell-mode)
+  "The modes which `too-long-lines-run-with-idle-time-in-special-buffers' recognizes
+as special buffers in which `too-long-lines-hide' should be run periodically.")
+
+(defun too-long-lines-hide (&optional buffers)
   "Hides lines that are longer then `too-long-lines-threshold'.
 
-It replaces them by the first number characters of the line as configured in
-variable `too-long-lines-show-number-of-characters', and a little info blurp
-about how many characters were hidden.
+Argument BUFFERS is a list of buffers in which this function looks for too
+long lines to hide, if it is not specified this function will look in all
+visible buffers for too long lines to hide.
 
-BEG and END arguments can be used to narrow the region in which this function
-looks for too long lines. LEN is only there so this function can be added
-to `after-change-functions'.
+It replaces too long lines with the first N number characters of the line as
+configured in variable `too-long-lines-show-number-of-characters', and a little
+info blurp about how many characters were hidden.
 
 See also `too-long-lines-threshold', `too-long-lines-show-number-of-characters',
 and `too-long-lines-show'."
   (interactive)
-  (unless (window-minibuffer-p)
-    (save-excursion
-      (goto-char (or beg (point-min)))
-      (let ((done nil))
-        (while (not done)
-          (setq done (>= (line-end-position) (or end (point-max))))
-          (let ((line-length (- (line-end-position) (line-beginning-position)))
-                (already-hidden nil))
-            (when (> line-length too-long-lines-threshold)
-              (dolist (ov (overlays-in (line-end-position) (line-beginning-position)))
-                (when (overlay-get ov 'too-long-line)
-                  (setq already-hidden t)))
-              (unless already-hidden
-                (let ((ov (make-overlay (+ (line-beginning-position) too-long-lines-show-number-of-characters) (line-end-position) (current-buffer))))
-                  (overlay-put ov 'too-long-line t)
-                  (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters"))
-                  (overlay-put ov 'face '(:background "#ff0066"))
-                  )
-                )))
-          (when (eq (point) (goto-char (line-beginning-position 2)))
-            (setq done t)))))))
+  (let ((buffers (or buffers
+                     (cl-mapcan (lambda (buf)
+                                  (when (get-buffer-window buf)
+                                    (list buf)))
+                                (buffer-list)))))
+    (cl-pushnew (current-buffer) buffers)
+    (dolist (buf buffers)
+      (unless (window-minibuffer-p (get-buffer-window buf))
+        (with-current-buffer buf
+          (save-excursion
+            (redisplay)
+            (goto-char (point-min))
+            (let ((done nil))
+              (while (not done)
+                (setq done (>= (line-end-position) (point-max)))
+                (let ((line-length (- (line-end-position) (line-beginning-position)))
+                      (already-hidden nil))
+                  (when (> line-length too-long-lines-threshold)
+                    (dolist (ov (overlays-in (line-beginning-position) (line-end-position)))
+                      (if (and (overlay-get ov 'too-long-line)
+                               (> (line-end-position) (overlay-end ov)))
+                          (delete-overlay ov)
+                        (setq already-hidden t)
+                        ))
+                    (unless already-hidden
+                      (let ((ov (make-overlay (+ (line-beginning-position) too-long-lines-show-number-of-characters) (line-end-position) buf)))
+                        (overlay-put ov 'too-long-line t)
+                        (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters"))
+                        (overlay-put ov 'face '(:background "#ff0066"))
+                        ))))
+                (when (eq (point) (goto-char (line-beginning-position 2)))
+                  (setq done t))))))))))
 
-(defun too-long-lines-run-with-idle-timer (&optional beg end len)
-  (interactive)
-  (when too-long-lines-hide-current-timer
+(defun too-long-lines-run-with-idle-timer-in-special-buffers ()
+  "Periodically run `too-long-lines-hide' in buffers that are in a major-mode from
+`loo-long-lines-special-buffer-modes'.
+
+See also `too-long-lines-idle-seconds'."
+  (when (not (eq too-long-lines-hide-current-timer nil))
     (cancel-timer too-long-lines-hide-current-timer)
     (setq too-long-lines-hide-current-timer nil))
-  (lexical-let ((lexical-beg (or beg (point-min)))
-                (lexical-end (or end (point-max))))
-    (setq too-long-lines-hide-current-timer
-          (run-with-idle-timer too-long-lines-idle-seconds nil 'too-long-lines-hide lexical-beg lexical-end))))
+  (setq too-long-lines-hide-current-timer
+        (run-with-idle-timer too-long-lines-idle-seconds t
+                             (lambda ()
+                               (let ((special-buffers '()))
+                                 (dolist (buffer (buffer-list))
+                                   (when (cl-some (lambda (x) (eq (with-current-buffer buffer major-mode) x)) too-long-lines-special-buffer-modes)
+                                     (setq special-buffers (append special-buffers (list buffer)))))
+                                 (too-long-lines-hide special-buffers))))))
 
 (defun too-long-lines-show ()
   "Restore all lines previously hidden by `too-long-lines-hide' in the current buffer."
@@ -108,7 +136,7 @@ and `too-long-lines-show'."
     (goto-char (point-min))
     (let ((done nil))
       (while (not done)
-        (setq done (>= (line-end-position) (or end (point-max))))
+        (setq done (>= (line-end-position) (point-max)))
         (dolist (ov (overlays-in (line-beginning-position) (line-end-position)))
           (when (overlay-get ov 'too-long-line)
             (delete-overlay ov)))
@@ -129,11 +157,11 @@ See also `too-long-lines-hide'."
           (with-current-buffer buf
             (too-long-lines-hide)))
         (add-hook 'find-file-hook 'too-long-lines-hide)
-        (add-hook 'post-command-hook 'too-long-lines-run-with-idle-timer)
+        (add-hook 'shell-mode-hook 'too-long-lines-run-with-idle-timer-in-special-buffers)
         )
     (progn
       (remove-hook 'find-file-hook 'too-long-lines-hide)
-      (remove-hook 'post-command-hook 'too-long-lines-run-with-idle-timer)
+      (remove-hook 'shell-mode-hook 'too-long-lines-run-with-idle-timer-in-special-buffers)
       (dolist (buf (buffer-list))
         (with-current-buffer buf
           (too-long-lines-show))))))
