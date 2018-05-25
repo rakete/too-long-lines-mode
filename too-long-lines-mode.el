@@ -148,9 +148,10 @@ See also `too-long-lines-idle-seconds'."
   "A minor that hides lines that are longer then a configurable threshold.
 
 See also `too-long-lines-hide'."
-  nil
-  " tll"
-  '()
+  :global t
+  :init-value nil
+  :lighter " tll"
+  :keymap '()
   (if too-long-lines-mode
       (progn
         (dolist (buf (buffer-list))
