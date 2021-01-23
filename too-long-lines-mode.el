@@ -65,6 +65,8 @@ runs `too-long-lines-hide'.")
   "The modes which `too-long-lines-run-with-idle-timer-in-special-buffers' recognizes
 as special buffers in which `too-long-lines-hide' should be run periodically.")
 
+(defvar too-long-lines-toggle-key [(tab)])
+
 (defun too-long-lines-hide (&optional beg end len)
   "Hides lines that are longer then `too-long-lines-threshold'.
 
@@ -83,18 +85,34 @@ See also `too-long-lines-threshold', `too-long-lines-show-number-of-characters',
               (line-end (line-end-position)))
           (setq done (>= line-end (or end (point-max))))
           (let ((line-length (- line-end line-beg))
-                (already-hidden nil))
+                (already-hidden nil)
+                (cur-too-long-line t))
             (when (> line-length too-long-lines-threshold)
               (dolist (ov (overlays-in line-beg line-end))
                 (if (and (overlay-get ov 'too-long-line)
                          (> line-end (overlay-end ov)))
-                    (delete-overlay ov)
+                    (progn
+                      (setq cur-too-long-line (overlay-get ov 'too-long-line))
+                      (delete-overlay ov))
                   (setq already-hidden t)
                   ))
               (unless already-hidden
-                (let ((ov (make-overlay (+ line-beg too-long-lines-show-number-of-characters) line-end (current-buffer))))
-                  (overlay-put ov 'too-long-line t)
-                  (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters"))
+                (lexical-let (
+                      (ov (make-overlay (+ line-beg too-long-lines-show-number-of-characters) line-end (current-buffer)))
+                      (too-long-keymap (make-sparse-keymap))
+                      (line-length line-length)
+                      )
+                  (define-key too-long-keymap too-long-lines-toggle-key
+                    (lambda () (interactive)
+                      (overlay-put ov 'too-long-line (if (eq (overlay-get ov 'too-long-line) 'shown) t 'shown))
+                      (if (eq (overlay-get ov 'too-long-line) 'shown)
+                          (overlay-put ov 'display nil)
+                        (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters")))))
+                  (overlay-put ov 'keymap too-long-keymap)
+                  (overlay-put ov 'too-long-line cur-too-long-line)
+                  (if (eq (overlay-get ov 'too-long-line) 'shown)
+                      (overlay-put ov 'display nil)
+                    (overlay-put ov 'display (concat "... " (prin1-to-string (- line-length too-long-lines-show-number-of-characters)) " hidden characters")))
                   (overlay-put ov 'face '(:background "#ff0066"))
                   )))))
         (when (eq (point) (goto-char (line-beginning-position 2)))
