@@ -95,7 +95,6 @@ See also `too-long-lines-threshold', `too-long-lines-show-number-of-characters',
                      (overlay-put o 'display (concat "... " (prin1-to-string (overlay-get o 'num-hidden)) " hidden characters"))
                      (overlay-put o 'face '(:background "#ff0066"))))))
             (when (> line-length too-long-lines-threshold)
-              (message "should hide %S" line-length)
               (overlay-recenter line-end)
               (dolist (ov (overlays-in line-beg line-end))
                 (if (overlay-get ov 'too-long-line)
