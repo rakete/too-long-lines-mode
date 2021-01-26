@@ -65,7 +65,7 @@ runs `too-long-lines-hide'.")
   "The modes which `too-long-lines-run-with-idle-timer-in-special-buffers' recognizes
 as special buffers in which `too-long-lines-hide' should be run periodically.")
 
-(defvar too-long-lines-toggle-key [(tab)])
+(defvar too-long-lines-toggle-key (kbd "TAB"))
 
 (defun too-long-lines-hide (&optional beg end len)
   "Hides lines that are longer then `too-long-lines-threshold'.
