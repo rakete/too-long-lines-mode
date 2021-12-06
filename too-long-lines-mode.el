@@ -103,7 +103,7 @@ See also `too-long-lines-threshold', `too-long-lines-show-number-of-characters',
                       (setq already-hidden ov))))
               (if already-hidden
                   (move-overlay already-hidden (+ line-beg too-long-lines-show-number-of-characters) line-end)
-                (lexical-let (
+                (let (
                       (ov (make-overlay (+ line-beg too-long-lines-show-number-of-characters) line-end (current-buffer)))
                       (too-long-keymap (make-sparse-keymap))
                       (line-length line-length)
